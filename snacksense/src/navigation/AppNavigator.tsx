@@ -3,6 +3,8 @@ import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import ScannerScreen from "../screens/ScannerScreen";
+import ResultsScreen from "../screens/ResultsScreen";
+import HomeScreen from "../screens/HomeScreen";
 import { useSelector } from "react-redux";
 import { RootState } from "../redux/store";
 
@@ -12,31 +14,6 @@ import RegisterScreen from "../screens/RegisterScreen"; // Ensure you created th
 import { View, Text, Button } from "react-native";
 import { useDispatch } from "react-redux";
 import { logout } from "../redux/authSlice";
-
-// Temporary Home Screen with Logout
-const HomeScreen = ({ navigation }: any) => {
-  const dispatch = useDispatch();
-  return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        gap: 20,
-      }}
-    >
-      <Text>Welcome to SnackSense!</Text>
-
-      {/* Add this Button */}
-      <Button
-        title="Scan Food"
-        onPress={() => navigation.navigate("Scanner")}
-      />
-
-      <Button title="Logout" onPress={() => dispatch(logout())} />
-    </View>
-  );
-};
 
 const Stack = createStackNavigator();
 
@@ -57,6 +34,7 @@ export default function AppNavigator() {
               component={ScannerScreen}
               options={{ headerShown: false }}
             />
+            <Stack.Screen name="Results" component={ResultsScreen} />
           </>
         ) : (
           // Auth Stack

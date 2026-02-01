@@ -2,57 +2,77 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Button, Dimensions } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { ActivityIndicator } from 'react-native-paper';
-import { getFoodProduct } from '../services/foodService';
+import { useDispatch, useSelector } from 'react-redux';
 
-// Get screen dimensions to center the box
+// Services & Redux
+import { getFoodProduct } from '../services/foodService';
+import { analyzeFoodProduct } from '../services/aiService';
+import { startScan, scanSuccess, analysisSuccess, scanFailure } from '../redux/scanSlice';
+import { RootState } from '../redux/store';
+
+// Screen Dimensions for the scan box
 const { width } = Dimensions.get('window');
-const SCAN_BOX_SIZE = width * 0.7; // 70% of screen width
+const SCAN_BOX_SIZE = width * 0.7; 
 
 export default function ScannerScreen({ navigation }: any) {
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
-  const [scanned, setScanned] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [scanned, setScanned] = useState(false); // Local state to freeze camera
 
-  // 1. Loading State (Permissions)
+  const dispatch = useDispatch();
+  // Read loading state from Redux
+  const loading = useSelector((state: RootState) => state.scan.loading);
+
+  // 1. Permission Loading State
   if (!permission) {
-    return <View />;
+    return <View style={styles.container} />;
   }
 
   // 2. Permission Denied State
   if (!permission.granted) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.message}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="grant permission" />
+      <View style={[styles.container, { alignItems: 'center', backgroundColor: 'black' }]}>
+        <Text style={styles.message}>We need camera permission to scan barcodes.</Text>
+        <Button onPress={requestPermission} title="Grant Permission" />
       </View>
     );
   }
 
-  // 3. Handle Barcode Scanned
+  // 3. Main Logic: Handle Barcode Scan
   const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
-    // Prevent multiple scans or scanning while loading
+    // Prevent double-scanning
     if (loading || scanned) return;
     
-    setLoading(true);
-    setScanned(true);
+    setScanned(true); // Freeze local camera state
+    dispatch(startScan()); // Set Redux loading = true
 
     try {
-      // Fetch Data from Open Food Facts
+      // Step A: Fetch Basic Data (Open Food Facts)
       const productData = await getFoodProduct(data);
+
+      if (!productData) {
+        throw new Error("Product found, but data is incomplete.");
+      }
       
-      // Success Feedback
-      // Note: In Day 3, we will navigate to the Results screen here instead of alerting.
-      // navigation.navigate('Results', { product: productData });
-      alert(`Found: ${productData?.name}\nIngredients: ${productData?.ingredients?.substring(0, 50)}...`);
+      dispatch(scanSuccess(productData)); // Save to Redux
+
+      // Step B: Analyze with AI (Gemini)
+      // Note: We do this here so the result is ready when we navigate
+      const analysis = await analyzeFoodProduct(productData);
       
+      dispatch(analysisSuccess(analysis)); // Save analysis to Redux
+      
+      // Step C: Navigate
+      setScanned(false); // Unfreeze for next time (though we navigate away)
+      navigation.navigate('Results'); 
+
     } catch (error: any) {
-      // Error Handling
+      console.error("Scan/Analysis Error:", error);
+      dispatch(scanFailure(error.message || "Unknown error occurred"));
       alert(`Error: ${error.message}`);
-      // Allow user to scan again immediately if it failed
+      
+      // Reset state so user can try again
       setScanned(false);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -83,7 +103,7 @@ export default function ScannerScreen({ navigation }: any) {
         </View>
         <View style={styles.unfocusedContainer}></View>
 
-        {/* Scan Again Button */}
+        {/* Scan Again Button (Only if scanned but failed/reset, not while loading) */}
         {scanned && !loading && (
           <View style={styles.scanAgainButton}>
             <Button title={'Tap to Scan Again'} onPress={() => setScanned(false)} />
@@ -91,11 +111,19 @@ export default function ScannerScreen({ navigation }: any) {
         )}
       </View>
 
-      {/* 3. Loading Indicator Layer */}
+      {/* 3. Loading Indicator Overlay (UX Improvement) */}
       {loading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#ffffff" />
-          <Text style={styles.loadingText}>Fetching Product Details...</Text>
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color="#4caf50" style={{ marginBottom: 20 }} />
+            <Text style={styles.loadingTitle}>Analyzing...</Text>
+            <Text style={styles.loadingSubtitle}>
+              Consulting the AI Nutritionist...
+            </Text>
+            <Text style={styles.loadingTip}>
+              (Checking for allergens & sustainability)
+            </Text>
+          </View>
         </View>
       )}
     </View>
@@ -112,15 +140,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingBottom: 10,
     color: 'white',
+    marginBottom: 10,
   },
-  // Overlay Styles
+  
+  // --- Overlay Styles ---
   overlay: {
     flex: 1,
     backgroundColor: 'transparent',
   },
   unfocusedContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)', // Darkens the surrounding area
+    backgroundColor: 'rgba(0,0,0,0.5)', // Darkens area outside scan box
   },
   middleContainer: {
     flexDirection: 'row',
@@ -139,23 +169,44 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
   },
-  // Loading Styles
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    zIndex: 10,
-  },
-  loadingText: {
-    color: 'white',
-    marginTop: 10,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  // Decorative corners
+  
+  // --- Decorative Corners ---
   cornerBorderTopLeft: { position: 'absolute', top: 0, left: 0, width: 20, height: 20, borderColor: 'white', borderLeftWidth: 4, borderTopWidth: 4 },
   cornerBorderTopRight: { position: 'absolute', top: 0, right: 0, width: 20, height: 20, borderColor: 'white', borderRightWidth: 4, borderTopWidth: 4 },
   cornerBorderBottomLeft: { position: 'absolute', bottom: 0, left: 0, width: 20, height: 20, borderColor: 'white', borderLeftWidth: 4, borderBottomWidth: 4 },
   cornerBorderBottomRight: { position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderColor: 'white', borderRightWidth: 4, borderBottomWidth: 4 },
+
+  // --- Loading Overlay Styles ---
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)', 
+    zIndex: 20,
+  },
+  loadingBox: {
+    backgroundColor: 'rgba(0,0,0,0.85)', 
+    padding: 30,
+    borderRadius: 20,
+    alignItems: 'center',
+    width: '85%',
+  },
+  loadingTitle: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  loadingSubtitle: {
+    color: '#e0e0e0',
+    textAlign: 'center',
+    marginBottom: 5,
+    fontSize: 16,
+  },
+  loadingTip: {
+    color: '#bdbdbd',
+    textAlign: 'center',
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
 });
