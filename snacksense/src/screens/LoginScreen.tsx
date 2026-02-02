@@ -5,12 +5,14 @@ import { TextInput, Button, Text } from 'react-native-paper';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../redux/authSlice';
 import { loginUser } from '../services/authService';
+import { useTheme } from 'react-native-paper';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
+  const theme = useTheme();
 
   const handleLogin = async () => {
     setLoading(true);
@@ -25,8 +27,7 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
-      {/* 2. Use Text with a variant instead of Title */}
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Text variant="headlineMedium" style={styles.title}>
         SnackSense Login
       </Text>

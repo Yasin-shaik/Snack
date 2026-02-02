@@ -7,6 +7,7 @@ import Svg, { Circle, G } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons"; // <--- Icons
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../redux/store";
+import { useTheme } from 'react-native-paper';
 import { resetScan } from "../redux/scanSlice";
 
 const { width } = Dimensions.get("window");
@@ -24,6 +25,7 @@ const SimpleCircularProgress = ({
   const halfCircle = radius + strokeWidth;
   const progress = (value / 100) * circumference;
   const strokeDashoffset = circumference - progress;
+
 
   return (
     <View
@@ -77,6 +79,7 @@ const SimpleCircularProgress = ({
 // 2. Main Screen
 export default function ResultsScreen({ navigation }: any) {
   const dispatch = useDispatch();
+  const theme = useTheme();
   const { scannedProduct, analysisResult } = useSelector(
     (state: RootState) => state.scan,
   );
@@ -121,7 +124,7 @@ export default function ResultsScreen({ navigation }: any) {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={{ paddingBottom: 40 }}
     >
       {/* --- HEADER --- */}

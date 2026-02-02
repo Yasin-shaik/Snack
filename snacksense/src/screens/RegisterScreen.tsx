@@ -6,9 +6,11 @@ import { TextInput, Button, Text } from 'react-native-paper';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../redux/authSlice';
 import { registerUser } from '../services/authService';
+import { useTheme } from 'react-native-paper';
 
 export default function RegisterScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
+  const theme = useTheme();
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
@@ -31,7 +33,7 @@ export default function RegisterScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* 2. Use Text with a variant prop */}
       <Text variant="headlineMedium" style={styles.title}>
         Create Account

@@ -5,14 +5,16 @@ import { Button, Card, Title, Paragraph, Avatar } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../redux/authSlice';
+import { useTheme } from 'react-native-paper';
 import { RootState } from '../redux/store';
 
 export default function HomeScreen({ navigation }: any) {
+  const theme = useTheme();
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.auth.user);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header with User Icon */}
       <View style={styles.header}>
         <View>

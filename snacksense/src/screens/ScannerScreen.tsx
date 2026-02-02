@@ -3,14 +3,12 @@ import { StyleSheet, Text, View, Button, Dimensions } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { ActivityIndicator } from 'react-native-paper';
 import { useDispatch, useSelector } from 'react-redux';
-
-// Services & Redux
 import { getFoodProduct } from '../services/foodService';
 import { analyzeFoodProduct } from '../services/aiService';
 import { startScan, scanSuccess, analysisSuccess, scanFailure } from '../redux/scanSlice';
 import { RootState } from '../redux/store';
+import { useTheme } from 'react-native-paper';
 
-// Screen Dimensions for the scan box
 const { width } = Dimensions.get('window');
 const SCAN_BOX_SIZE = width * 0.7; 
 
@@ -18,17 +16,16 @@ export default function ScannerScreen({ navigation }: any) {
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false); // Local state to freeze camera
+  const userProfile = useSelector((state: RootState) => state.auth.userProfile);
+  const theme = useTheme();
 
   const dispatch = useDispatch();
-  // Read loading state from Redux
   const loading = useSelector((state: RootState) => state.scan.loading);
 
-  // 1. Permission Loading State
   if (!permission) {
     return <View style={styles.container} />;
   }
 
-  // 2. Permission Denied State
   if (!permission.granted) {
     return (
       <View style={[styles.container, { alignItems: 'center', backgroundColor: 'black' }]}>
@@ -38,18 +35,12 @@ export default function ScannerScreen({ navigation }: any) {
     );
   }
 
-  // 3. Main Logic: Handle Barcode Scan
   const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
-    // Prevent double-scanning
     if (loading || scanned) return;
-    
-    setScanned(true); // Freeze local camera state
-    dispatch(startScan()); // Set Redux loading = true
-
+    setScanned(true);
+    dispatch(startScan());
     try {
-      // Step A: Fetch Basic Data (Open Food Facts)
       const productData = await getFoodProduct(data);
-
       if (!productData) {
         throw new Error("Product found, but data is incomplete.");
       }
@@ -58,7 +49,7 @@ export default function ScannerScreen({ navigation }: any) {
 
       // Step B: Analyze with AI (Gemini)
       // Note: We do this here so the result is ready when we navigate
-      const analysis = await analyzeFoodProduct(productData);
+      const analysis = await analyzeFoodProduct(productData, userProfile);
       
       dispatch(analysisSuccess(analysis)); // Save analysis to Redux
       
@@ -77,7 +68,7 @@ export default function ScannerScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* 1. Camera Layer */}
       <CameraView 
         style={StyleSheet.absoluteFill} 

@@ -2,13 +2,11 @@
 import { GoogleGenerativeAI, SchemaType, Schema } from "@google/generative-ai";
 import { FoodProduct } from "./foodService";
 import { AnalysisResult } from "../types/AnalysisResult";
+import { UserProfile } from "../redux/authSlice";
 
-// WARNING: In production, use "expo-constants" or ".env" files to hide this key!
 const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API;
-
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// FIX: Explicitly type this object as 'Schema'
 const schema: Schema = {
   description: "Food analysis result",
   type: SchemaType.OBJECT,
@@ -19,7 +17,7 @@ const schema: Schema = {
     },
     category: {
       type: SchemaType.STRING,
-      format: "enum", // <--- THIS WAS MISSING
+      format: "enum",
       description: "Overall verdict: Harmful, Neutral, or Beneficial",
       enum: ["Harmful", "Neutral", "Beneficial"],
     },
@@ -51,7 +49,6 @@ const schema: Schema = {
     "healthier_alternatives",
   ],
 };
-
 const model = genAI.getGenerativeModel({
   model: "gemini-3-flash-preview",
   generationConfig: {
@@ -59,16 +56,32 @@ const model = genAI.getGenerativeModel({
     responseSchema: schema,
   },
 });
-
 export const analyzeFoodProduct = async (
   product: FoodProduct,
+  profile: UserProfile | null,
 ): Promise<AnalysisResult> => {
-  try {
-    // Construct the prompt with the data from Open Food Facts
-    const prompt = `
-      Analyze this food product as a strict, health-conscious nutritionist.
+  const userContext = profile
+    ? `
+      USER CONTEXT (CRITICAL):
+      - Activity Level: ${profile.activityLevel}
+      - Health Goal: ${profile.healthGoal}
+      - Daily Water Goal: ${profile.waterGoal} liters
+      - Daily Step Goal: ${profile.stepGoal} steps
       
-      Product Name: ${product.name}
+      INSTRUCTION:
+      Analyze this food specifically for THIS user. 
+      - If they want "Muscle Gain" and the food is high protein, score it higher.
+      - If they want "Weight Loss" and it's high calorie/sugar, score it lower.
+      - If they are "Active", be more lenient with carbs/energy than if they were "Sedentary".
+      `
+    : "User profile not available. Analyze for a general healthy adult.";
+
+  try {
+    const prompt = `
+      ${userContext}
+
+      PRODUCT DATA:
+      Name: ${product.name}
       Brand: ${product.brand}
       Ingredients: ${product.ingredients}
       Nutriments (per 100g):
@@ -78,15 +91,14 @@ export const analyzeFoodProduct = async (
       - Protein: ${product.nutriments.proteins}g
       - Calories: ${product.nutriments.energy_kcal}
       
-      Provide a strict assessment of its health impact, sustainability, and potential allergens.
+      Provide a strict assessment of its health impact, sustainability, and potential allergens based on the USER CONTEXT provided above.
     `;
-
     const result = await model.generateContent(prompt);
+    console.log("--- SENDING PROMPT TO AI ---");
+    console.log(prompt); // This lets you confirm the User Context is attached
+    console.log("----------------------------");
     const responseText = result.response.text();
-
-    // Parse the JSON response
     const analysis: AnalysisResult = JSON.parse(responseText);
-
     return analysis;
   } catch (error) {
     console.error("AI Analysis Failed:", error);

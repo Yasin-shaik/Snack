@@ -7,6 +7,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './src/firebaseConfig';
 import { setUser, logout } from './src/redux/authSlice';
+import { appTheme } from './src/theme/appTheme';
 
 // 1. Create a wrapper component that handles the Auth Logic
 // We need this because `useDispatch` only works INSIDE a ReduxProvider.
@@ -37,7 +38,7 @@ const AppContent = () => {
 export default function App() {
   return (
     <ReduxProvider store={store}>
-      <PaperProvider>
+      <PaperProvider theme={appTheme}>
         <AppContent /> 
       </PaperProvider>
     </ReduxProvider>
