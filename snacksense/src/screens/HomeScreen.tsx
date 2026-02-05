@@ -12,10 +12,8 @@ export default function HomeScreen({ navigation }: any) {
   const theme = useTheme();
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.auth.user);
-
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header with User Icon */}
       <View style={styles.header}>
         <View>
           <Title style={styles.greeting}>Hello, Snacker!</Title>
@@ -25,11 +23,9 @@ export default function HomeScreen({ navigation }: any) {
           name="account-circle" 
           size={50} 
           color="#4caf50" 
-          onPress={() => dispatch(logout())} // Quick logout for MVP
+          onPress={() => dispatch(logout())}
         />
       </View>
-
-      {/* Main Action Card */}
       <Card style={styles.card} onPress={() => navigation.navigate('Scanner')}>
         <Card.Content style={{ alignItems: 'center', paddingVertical: 40 }}>
           <MaterialCommunityIcons name="barcode-scan" size={80} color="#333" />

@@ -1,4 +1,3 @@
-// src/screens/LoginScreen.tsx
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { TextInput, Button, Text } from 'react-native-paper'; 
@@ -6,6 +5,8 @@ import { useDispatch } from 'react-redux';
 import { setUser } from '../redux/authSlice';
 import { loginUser } from '../services/authService';
 import { useTheme } from 'react-native-paper';
+import { getUserProfile } from '../services/authService';
+import { updateUserProfile } from '../redux/authSlice';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
@@ -15,23 +16,25 @@ export default function LoginScreen({ navigation }: any) {
   const theme = useTheme();
 
   const handleLogin = async () => {
-    setLoading(true);
-    const result = await loginUser(email, password);
-    setLoading(false);
-    
-    if (result.user) {
-      dispatch(setUser({ uid: result.user.uid, email: result.user.email }));
-    } else {
-      alert(result.error);
+  setLoading(true);
+  const result = await loginUser(email, password);
+  if (result.user) {
+    const profile = await getUserProfile(result.user.uid);
+    if (profile) {
+      dispatch(updateUserProfile(profile));
     }
-  };
+    dispatch(setUser({ uid: result.user.uid, email: result.user.email }));
+  } else {
+    alert(result.error);
+  }
+  setLoading(false);
+};
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Text variant="headlineMedium" style={styles.title}>
         SnackSense Login
       </Text>
-      
       <TextInput
         label="Email"
         value={email}

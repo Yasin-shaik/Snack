@@ -1,15 +1,15 @@
 // src/services/authService.ts
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { getFirestore, doc, setDoc } from 'firebase/firestore'; // Import Firestore
-import { auth } from '../firebaseConfig'; // Ensure you have exported 'db' or initialize here
+import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth } from '../firebaseConfig';
 import { UserProfile } from '../redux/authSlice';
+
 
 const db = getFirestore(); 
 
 export const saveUserProfile = async (uid: string, profile: UserProfile) => {
   try {
     const userRef = doc(db, "users", uid);
-    // Merge true allows updating specific fields without overwriting everything
     await setDoc(userRef, { profile }, { merge: true });
     return { success: true };
   } catch (error: any) {
@@ -37,4 +37,20 @@ export const loginUser = async (email: string, password: string) => {
 
 export const logoutUser = async () => {
   await signOut(auth);
+};
+
+export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
+  try {
+    const userRef = doc(db, "users", uid);
+    const docSnap = await getDoc(userRef);
+    
+    if (docSnap.exists()) {
+      return docSnap.data().profile as UserProfile;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    return null;
+  }
 };
