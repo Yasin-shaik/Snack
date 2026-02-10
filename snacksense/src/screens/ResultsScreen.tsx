@@ -1,5 +1,5 @@
 // src/screens/ResultsScreen.tsx
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { View, StyleSheet, Image, ScrollView, Dimensions } from "react-native";
 import { Linking, Alert } from "react-native";
 import { Text, Card, Title, Paragraph, Button, Chip } from "react-native-paper";
@@ -9,6 +9,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../redux/store";
 import { useTheme } from 'react-native-paper';
 import { resetScan } from "../redux/scanSlice";
+import { Animated } from 'react-native';
 
 const { width } = Dimensions.get("window");
 
@@ -83,6 +84,14 @@ export default function ResultsScreen({ navigation }: any) {
   const { scannedProduct, analysisResult } = useSelector(
     (state: RootState) => state.scan,
   );
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,          
+      duration: 800,       
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   if (!scannedProduct || !analysisResult) {
     return (
@@ -123,6 +132,7 @@ export default function ResultsScreen({ navigation }: any) {
   const hasAllergens = analysisResult.allergens.length > 0;
 
   return (
+    <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
     <ScrollView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={{ paddingBottom: 40 }}
@@ -312,12 +322,13 @@ export default function ResultsScreen({ navigation }: any) {
           dispatch(resetScan());
           navigation.navigate("Scanner");
         }}
-        style={{ margin: 20, backgroundColor: "#333" }}
+        style={{ margin: 20, backgroundColor: "#333", borderRadius: 30}}
         icon="camera"
       >
         Scan Another Item
       </Button>
     </ScrollView>
+    </Animated.View>
   );
 }
 
@@ -328,8 +339,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 30,
     backgroundColor: "white",
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
     elevation: 2,
     marginBottom: 20,
   },
@@ -375,7 +386,7 @@ const styles = StyleSheet.create({
   card: {
     marginHorizontal: 20,
     marginBottom: 15,
-    borderRadius: 12,
+    borderRadius: 25,
     backgroundColor: "white",
     elevation: 2,
   },
@@ -398,7 +409,7 @@ const styles = StyleSheet.create({
   altCard: {
     width: 140,
     marginRight: 15,
-    borderRadius: 12,
+    borderRadius: 20,
     backgroundColor: "white",
     elevation: 2,
   },

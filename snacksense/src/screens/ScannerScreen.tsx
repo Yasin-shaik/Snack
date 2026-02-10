@@ -1,31 +1,41 @@
-import React, { useState, useEffect } from 'react';
+// src/screens/ScannerScreen.tsx
+import React, { useState } from 'react';
 import { StyleSheet, Text, View, Button, Dimensions } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { ActivityIndicator } from 'react-native-paper';
 import { useDispatch, useSelector } from 'react-redux';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
+
+// Services & Redux
 import { getFoodProduct } from '../services/foodService';
 import { analyzeFoodProduct } from '../services/aiService';
 import { startScan, scanSuccess, analysisSuccess, scanFailure } from '../redux/scanSlice';
 import { RootState } from '../redux/store';
-import { useTheme } from 'react-native-paper';
 
 const { width } = Dimensions.get('window');
 const SCAN_BOX_SIZE = width * 0.7; 
 
 export default function ScannerScreen({ navigation }: any) {
+  const theme = useTheme();
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
-  const [scanned, setScanned] = useState(false); // Local state to freeze camera
-  const userProfile = useSelector((state: RootState) => state.auth.userProfile);
-  const theme = useTheme();
+  
+  // Local states
+  const [scanned, setScanned] = useState(false); 
+  const [isSuccessAnim, setIsSuccessAnim] = useState(false); // Controls Green Checkmark
 
+  // Redux hooks
   const dispatch = useDispatch();
   const loading = useSelector((state: RootState) => state.scan.loading);
+  const userProfile = useSelector((state: RootState) => state.auth.userProfile);
 
+  // 1. Permission Loading
   if (!permission) {
     return <View style={styles.container} />;
   }
 
+  // 2. Permission Denied
   if (!permission.granted) {
     return (
       <View style={[styles.container, { alignItems: 'center', backgroundColor: 'black' }]}>
@@ -35,26 +45,36 @@ export default function ScannerScreen({ navigation }: any) {
     );
   }
 
+  // 3. Main Logic
   const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
+    // Prevent multiple scans
     if (loading || scanned) return;
-    setScanned(true);
-    dispatch(startScan());
-    try {
-      const productData = await getFoodProduct(data);
-      if (!productData) {
-        throw new Error("Product found, but data is incomplete.");
-      }
-      
-      dispatch(scanSuccess(productData)); // Save to Redux
+    
+    setScanned(true); // Freeze camera
+    dispatch(startScan()); // Show "Analyzing..." spinner (Redux loading=true)
 
-      // Step B: Analyze with AI (Gemini)
-      // Note: We do this here so the result is ready when we navigate
+    try {
+      // A. Fetch Basic Data (Open Food Facts)
+      const productData = await getFoodProduct(data);
+      
+      if (!productData) {
+        throw new Error("Product not found in database.");
+      }
+
+      // B. Show Success Animation (Overlays the spinner)
+      setIsSuccessAnim(true);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 sec
+      setIsSuccessAnim(false); // Hide checkmark, reveal "Analyzing..." spinner
+
+      dispatch(scanSuccess(productData)); // Save product to Redux
+
+      // C. Analyze with AI (Gemini) - Passing User Profile
       const analysis = await analyzeFoodProduct(productData, userProfile);
       
       dispatch(analysisSuccess(analysis)); // Save analysis to Redux
       
-      // Step C: Navigate
-      setScanned(false); // Unfreeze for next time (though we navigate away)
+      // D. Navigate
+      setScanned(false); // Reset for next time
       navigation.navigate('Results'); 
 
     } catch (error: any) {
@@ -62,13 +82,14 @@ export default function ScannerScreen({ navigation }: any) {
       dispatch(scanFailure(error.message || "Unknown error occurred"));
       alert(`Error: ${error.message}`);
       
-      // Reset state so user can try again
+      // Reset states on failure
       setScanned(false);
+      setIsSuccessAnim(false);
     }
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={styles.container}>
       {/* 1. Camera Layer */}
       <CameraView 
         style={StyleSheet.absoluteFill} 
@@ -85,6 +106,7 @@ export default function ScannerScreen({ navigation }: any) {
         <View style={styles.middleContainer}>
           <View style={styles.unfocusedContainer}></View>
           <View style={styles.focusedContainer}>
+            {/* Green Corners */}
             <View style={styles.cornerBorderTopLeft} />
             <View style={styles.cornerBorderTopRight} />
             <View style={styles.cornerBorderBottomLeft} />
@@ -94,15 +116,15 @@ export default function ScannerScreen({ navigation }: any) {
         </View>
         <View style={styles.unfocusedContainer}></View>
 
-        {/* Scan Again Button (Only if scanned but failed/reset, not while loading) */}
-        {scanned && !loading && (
+        {/* Scan Again Button (Only if scanned but failed, not while loading) */}
+        {scanned && !loading && !isSuccessAnim && (
           <View style={styles.scanAgainButton}>
             <Button title={'Tap to Scan Again'} onPress={() => setScanned(false)} />
           </View>
         )}
       </View>
 
-      {/* 3. Loading Indicator Overlay (UX Improvement) */}
+      {/* 3. Loading Indicator Overlay (Analyzing...) */}
       {loading && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingBox}>
@@ -115,6 +137,16 @@ export default function ScannerScreen({ navigation }: any) {
               (Checking for allergens & sustainability)
             </Text>
           </View>
+        </View>
+      )}
+
+      {/* 4. Success Overlay (Product Found!) - Higher zIndex */}
+      {isSuccessAnim && (
+        <View style={styles.successOverlay}>
+          <View style={styles.successCircle}>
+            <MaterialCommunityIcons name="check" size={80} color="white" />
+          </View>
+          <Text style={styles.successText}>Product Found!</Text>
         </View>
       )}
     </View>
@@ -161,13 +193,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   
-  // --- Decorative Corners ---
-  cornerBorderTopLeft: { position: 'absolute', top: 0, left: 0, width: 20, height: 20, borderColor: 'white', borderLeftWidth: 4, borderTopWidth: 4 },
-  cornerBorderTopRight: { position: 'absolute', top: 0, right: 0, width: 20, height: 20, borderColor: 'white', borderRightWidth: 4, borderTopWidth: 4 },
-  cornerBorderBottomLeft: { position: 'absolute', bottom: 0, left: 0, width: 20, height: 20, borderColor: 'white', borderLeftWidth: 4, borderBottomWidth: 4 },
-  cornerBorderBottomRight: { position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderColor: 'white', borderRightWidth: 4, borderBottomWidth: 4 },
+  // --- Green Corners ---
+  cornerBorderTopLeft: { 
+    position: 'absolute', top: 0, left: 0, width: 30, height: 30,
+    borderColor: '#4CAF50', 
+    borderLeftWidth: 5, borderTopWidth: 5,
+    borderTopLeftRadius: 10 
+  },
+  cornerBorderTopRight: { 
+    position: 'absolute', top: 0, right: 0, width: 30, height: 30, 
+    borderColor: '#4CAF50',
+    borderRightWidth: 5, borderTopWidth: 5,
+    borderTopRightRadius: 10
+  },
+  cornerBorderBottomLeft: { 
+    position: 'absolute', bottom: 0, left: 0, width: 30, height: 30, 
+    borderColor: '#4CAF50',
+    borderLeftWidth: 5, borderBottomWidth: 5,
+    borderBottomLeftRadius: 10
+  },
+  cornerBorderBottomRight: { 
+    position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, 
+    borderColor: '#4CAF50',
+    borderRightWidth: 5, borderBottomWidth: 5,
+    borderBottomRightRadius: 10
+  },
 
-  // --- Loading Overlay Styles ---
+  // --- Loading Overlay ---
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
@@ -199,5 +251,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     fontStyle: 'italic',
+  },
+
+  // --- Success Overlay ---
+  successOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 30, // Shows ON TOP of loading overlay
+  },
+  successCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#4CAF50', 
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    elevation: 10,
+  },
+  successText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2E7D32',
   },
 });

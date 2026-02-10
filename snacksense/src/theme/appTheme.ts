@@ -3,6 +3,7 @@ import { colors } from './colors';
 
 export const appTheme = {
   ...DefaultTheme,
+  roundness: 4,
   colors: {
     ...DefaultTheme.colors,
     

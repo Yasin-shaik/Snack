@@ -22,14 +22,14 @@ export default function HomeScreen({ navigation }: any) {
         <MaterialCommunityIcons 
           name="account-circle" 
           size={50} 
-          color="#4caf50" 
+          color={theme.colors.primary}
           onPress={() => dispatch(logout())}
         />
       </View>
-      <Card style={styles.card} onPress={() => navigation.navigate('Scanner')}>
+      <Card style={[styles.card, { backgroundColor: theme.colors.surface }]} onPress={() => navigation.navigate('Scanner')}>
         <Card.Content style={{ alignItems: 'center', paddingVertical: 40 }}>
-          <MaterialCommunityIcons name="barcode-scan" size={80} color="#333" />
-          <Title style={{ marginTop: 20 }}>Scan a Product</Title>
+          <MaterialCommunityIcons name="barcode-scan" size={80} color={theme.colors.primary} />
+          <Title style={{ marginTop: 20, color: theme.colors.onSurface }}>Scan a Product</Title>
           <Paragraph style={{ textAlign: 'center', color: 'gray' }}>
             Point your camera at a food barcode to analyze its health score.
           </Paragraph>
@@ -44,5 +44,5 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 },
   greeting: { fontSize: 28, fontWeight: 'bold' },
   subtext: { color: 'gray' },
-  card: { borderRadius: 20, elevation: 4, backgroundColor: 'white' },
+  card: { borderRadius: 30, elevation: 4, backgroundColor: 'white' , marginBottom: 20},
 });

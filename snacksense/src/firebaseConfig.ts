@@ -1,7 +1,8 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApp, getApps } from "firebase/app";
 // @ts-ignore
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
+import { initializeFirestore, getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -13,9 +14,30 @@ const firebaseConfig = {
   measurementId: process.env.EXPO_PUBLIC_FIREBASE_MID
 };
 
-const app = initializeApp(firebaseConfig);
+// 3. Initialize App (Singleton Pattern)
+let app;
+let auth;
+let db;
 
-// 2. Initialize Auth with persistence enabled
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(ReactNativeAsyncStorage),
-});
+if (getApps().length === 0) {
+  // If no app exists, initialize it
+  app = initializeApp(firebaseConfig);
+
+  // Initialize Auth with Persistence
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+  });
+
+  // Initialize Firestore with Long Polling (Fixes Android Offline issues)
+  db = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+  });
+  
+} else {
+  // If app already exists, use the existing instance
+  app = getApp();
+  auth = getAuth(app);
+  db = getFirestore(app);
+}
+
+export { app, auth, db };
